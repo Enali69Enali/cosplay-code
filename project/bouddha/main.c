@@ -1,5 +1,6 @@
 #include <avr/io.h>
-#include <util/delay.h>
+#include <avr/interrupt.h>
+#include <avr/sleep.h>
 
 void setup(){
     // Motor configuration 
@@ -10,19 +11,26 @@ void setup(){
     // Set PD2 (digital pin 2) as input with internal pull-up resistor
     DDRD &= ~(1 << PD2);     // Clear bit = input mode : 0 = INPUT
     PORTD |= (1 << PD2);     // Enable pull-up resistor
+
+    // Interruption
+    // Configure external interrupt INT0 on falling edge INT0 (PD2)
+    EICRA |= (1 << ISC01);  // ISC01=1, ISC00=0 → falling edge
+    EIMSK |= (1 << INT0);   // Enable external interrupt INT0
+
+    sei();                  // Set global interrupt flag (enable all interrupts)
 }
 
 int main(void) {
     setup();
-    
+
     while(1) {
-        // If button is pressed (logic LOW on PD2)
-        if(!(PIND & (1 << PD2))) {
-            PORTD |= (1 << PD3);    // Set PD3 HIGH (motor ON)
-        } else {
-            PORTD &= ~(1 << PD3);   // Set PD3 LOW (motor OFF)
-        }
-        _delay_ms(100);  // Simple software debounce
+        sleep_mode();
     }
     return 0;
+}
+
+// This function runs automatically when INT0 is triggered
+ISR(INT0_vect) {
+    // Toggle PD3 (if ON -> OFF, if OFF -> ON)
+    PORTD ^= (1 << PD3);  // XOR to invert the current state
 }
